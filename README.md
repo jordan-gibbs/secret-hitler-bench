@@ -2,7 +2,9 @@
 
 <img width="1024" height="768" alt="Slide 4_3 - 1" src="https://github.com/user-attachments/assets/23794bbb-bd23-4100-9819-fdbcd5b8943d" />
 
-An LLM social deduction benchmark that runs full 8-player Secret Hitler games with AI agents. Each player is driven by a language model that must lie, deceive, interrogate, form alliances, and deduce hidden roles — all through natural language.
+An LLM social deduction benchmark that runs full 8-player Secret Hitler games with AI agents. Each player is driven by a language model that must lie, deceive, interrogate, form alliances, and deduce hidden roles — all through natural language. Full interactive UI included! 
+
+<img width="2553" height="1474" alt="image" src="https://github.com/user-attachments/assets/f995dc4e-2080-4b6b-b853-8f03f9ffd7b1" />
 
 Built to answer the question: **How well can LLMs play social deduction games?**
 
