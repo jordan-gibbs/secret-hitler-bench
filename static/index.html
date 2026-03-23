@@ -481,8 +481,8 @@ function ModelSelect({ label, value, onChange, models, disabled, team }) {
 /* ── App ────────────────────────────────────────────────── */
 function App() {
   const [models, setModels] = useState([]);
-  const [libModel, setLibModel] = useState("mock");
-  const [fasModel, setFasModel] = useState("mock");
+  const [libModel, setLibModel] = useState("google/gemini-2.5-flash-lite");
+  const [fasModel, setFasModel] = useState("minimax/minimax-m2.7");
   const [seed, setSeed] = useState("");
   const [discussion, setDiscussion] = useState(true);
   const [reasoning, setReasoning] = useState(true);

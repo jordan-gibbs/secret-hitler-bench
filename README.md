@@ -27,18 +27,7 @@ You need an **[OpenRouter](https://openrouter.ai/) API key** to run LLM-powered 
 2. Add credits at [openrouter.ai/settings/credits](https://openrouter.ai/settings/credits)
 3. Generate an API key at [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys)
 
-> **Cost Warning:** Running LLM games is expensive. A single 8-player game with discussion generates 100-300+ API calls. With a mid-tier model like Gemini 2.5 Flash, one game can cost 1-5 bucks. Premium models like Claude Sonnet or GPT-4.1 can cost 30 dollars+ per game. Start with the cheapest models to get a feel for costs before scaling up.
-
-**Recommended starter models (cheapest):**
-
-| Model | Cost per M tokens | Notes |
-|-------|-------------------|-------|
-| `openai/gpt-oss-20b` | $0.03 / $0.11 | Ultra cheap, open-source GPT |
-| `google/gemini-2.0-flash-lite-001` | $0.07 / $0.30 | Cheap Gemini |
-| `openai/gpt-4.1-nano` | $0.10 / $0.40 | Cheapest GPT, 1M context |
-| `deepseek/deepseek-v3.2` | $0.26 / $0.38 | Best value workhorse |
-
-You can also run games for **free** with MockPlayer (random choices, no API key needed) to test the system.
+> **Cost Warning:** Running LLM games is expensive. A single 8-player game with discussion generates 100-300+ API calls. With a mid-tier model like Gemini 2.5 Flash, one game can cost $1-\$5. Premium models like Claude Sonnet or GPT-4.1 can cost \$50+ per game. Start with the cheapest models to get a feel for costs before scaling up.
 
 ## Quick Start
 
