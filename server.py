@@ -25,8 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from secret_hitler.arbiter import DiscussionConfig, GameArbiter
 from secret_hitler.game_db import create_record, get_stats, load_all_games, save_game
 from secret_hitler.model_config import list_models, get_model
-from secret_hitler.models import Party
-from secret_hitler.player import LLMPlayer, MockPlayer
+from secret_hitler.player import MockPlayer
 
 app = FastAPI(title="Secret Hitler Bench")
 
@@ -65,7 +64,7 @@ async def api_models():
                     for m in raw:
                         mid = m["id"]
                         params = m.get("supported_parameters", [])
-                        if "tools" not in params:
+                        if "tools" not in params or "response_format" not in params:
                             continue
                         if m.get("context_length", 0) < 8000:
                             continue
@@ -187,23 +186,17 @@ async def game_websocket(ws: WebSocket):
 
         use_llm = liberal_client is not None or fascist_client is not None
 
-        if use_llm:
-            arbiter = GameArbiter(
-                player_factory=LLMPlayer if (liberal_client and fascist_client) else _get_mixed_factory(liberal_client, fascist_client),
-                seed=seed,
-                discussion_config=disc,
-                on_event=on_event_sync,
-                liberal_llm_client=liberal_client,
-                fascist_llm_client=fascist_client,
-            )
-        else:
-            arbiter = GameArbiter(
-                player_factory=MockPlayer,
-                player_factory_kwargs={"seed": seed},
-                seed=seed,
-                discussion_config=disc,
-                on_event=on_event_sync,
-            )
+        # The arbiter handles mixed teams (LLM + Mock) automatically
+        # based on per-team client assignment
+        arbiter = GameArbiter(
+            player_factory=MockPlayer,
+            player_factory_kwargs={"seed": seed},
+            seed=seed,
+            discussion_config=disc,
+            on_event=on_event_sync,
+            liberal_llm_client=liberal_client,
+            fascist_llm_client=fascist_client,
+        )
 
         await ws.send_json({"type": "game_starting", "data": {
             "liberal_model": liberal_model,
@@ -244,8 +237,15 @@ async def game_websocket(ws: WebSocket):
         # Wait for the task to fully complete
         try:
             log = await game_task
+        except asyncio.CancelledError:
+            logging.info("Game cancelled by user")
+            try:
+                await ws.send_json({"type": "game_complete", "data": {"cancelled": True}})
+            except Exception:
+                pass
+            return
         except Exception as e:
-            logging.exception("Game task failed")
+            logging.warning("Game task failed: %s", e)
             try:
                 await ws.send_json({"type": "error", "data": {"message": str(e)}})
             except Exception:
@@ -288,7 +288,9 @@ async def game_websocket(ws: WebSocket):
         await ws.send_json({"type": "game_complete", "data": summary})
 
     except WebSocketDisconnect:
-        pass
+        logging.info("Client disconnected")
+    except asyncio.CancelledError:
+        logging.info("Game cancelled")
     except Exception as e:
         logging.exception("Game error")
         try:
@@ -302,19 +304,6 @@ async def game_websocket(ws: WebSocket):
             except Exception:
                 pass
 
-
-def _get_mixed_factory(liberal_client, fascist_client):
-    """When one team is LLM and the other is mock, we still use LLMPlayer
-    as factory since the arbiter handles per-team client assignment.
-    MockPlayer seats get a dummy client that won't be called because
-    the arbiter will assign the real client based on party."""
-    # If at least one team has an LLM, use LLMPlayer for all.
-    # The arbiter's per-team client logic will assign the right client.
-    # For the mock team, we still need an LLM client placeholder.
-    # Actually, we need a different approach: use LLMPlayer for LLM seats
-    # and MockPlayer for mock seats. The arbiter setup handles this
-    # by checking if a client is available per party.
-    return LLMPlayer
 
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

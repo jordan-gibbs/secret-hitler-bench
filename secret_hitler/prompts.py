@@ -169,12 +169,12 @@ def _format_view(view: PlayerView) -> str:
         lines.append(f"Last elected Chancellor: {view.last_elected_chancellor}")
 
     if view.vote_history:
-        lines.append("\nRecent vote history:")
-        for vh in view.vote_history[-3:]:
+        lines.append("\nGovernment history (all votes):")
+        for vh in view.vote_history:
             result = "PASSED" if vh["passed"] else "FAILED"
             lines.append(
-                f"  Round {vh['round']}: {vh['president']} / {vh['chancellor']} "
-                f"-> {result} ({vh['votes']})"
+                f"  Round {vh['round']}: {vh['president']} (P) / {vh['chancellor']} (C) "
+                f"-> {result}"
             )
 
     if view.enacted_policies_log:
@@ -209,9 +209,9 @@ def _format_view(view: PlayerView) -> str:
 
     if view.chat_history:
         lines.append("\nDiscussion so far:")
-        shown = view.chat_history[-50:]
-        if len(view.chat_history) > 50:
-            lines.append(f"  ... ({len(view.chat_history) - 50} earlier messages omitted)")
+        shown = view.chat_history[-500:]
+        if len(view.chat_history) > 500:
+            lines.append(f"  ... ({len(view.chat_history) - 500} earlier messages omitted)")
         for ch in shown:
             directed = ch.get("directed_at")
             if directed:

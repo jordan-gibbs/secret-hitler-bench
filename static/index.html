@@ -51,6 +51,8 @@ tailwind.config = {
   .scrollbar-thin::-webkit-scrollbar-thumb { background: #DED6C0; border-radius: 3px; }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #B0A790; }
   @keyframes fadeUp { from { opacity:0; transform:translateY(4px) } to { opacity:1; transform:translateY(0) } }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  .animate-spin { animation: spin 0.8s linear infinite; }
   .anim-in { animation: fadeUp .15s ease-out; }
   select, input[type=number] { background: #EDE7D3; }
   select:focus, input:focus { outline: 2px solid #C47F17; outline-offset: -1px; }
@@ -151,7 +153,7 @@ function ElecTracker({ count }) {
 }
 
 /* ── Player Seat ────────────────────────────────────────── */
-function Seat({ p, role, isPres, isChan, reveal, alive, model, style }) {
+function Seat({ p, role, isPres, isChan, reveal, alive, model, isThinking, style }) {
   const a = alive !== false;
   return (
     <div style={style} className={cn("absolute flex flex-col items-center gap-0.5 p-2 rounded-xl border-2 transition-all w-[88px]",
@@ -161,12 +163,18 @@ function Seat({ p, role, isPres, isChan, reveal, alive, model, style }) {
       "border-cream-dd bg-white/60 hover:border-ink-lll/40"
     )}>
       <div className={cn("w-9 h-9 rounded-full flex items-center justify-center font-display text-sm tracking-wide",
+        isThinking ? "bg-amber/20 border-2 border-amber/40" :
         !a ? "bg-cream-dd text-ink-lll" :
         reveal && role==="hitler" ? "bg-fas-dk text-cream" :
         reveal && role==="fascist" ? "bg-fas text-cream" :
         reveal && role==="liberal" ? "bg-lib text-cream" :
         "bg-cream-dd text-ink"
-      )}>{p?.name?.[0]||"?"}</div>
+      )}>
+        {isThinking
+          ? <svg className="animate-spin w-4 h-4 text-amber" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" strokeDasharray="31.4 31.4" strokeLinecap="round"/></svg>
+          : (p?.name?.[0]||"?")
+        }
+      </div>
       <span className={cn("text-[11px] font-semibold font-body", !a && "line-through text-ink-lll")}>{p?.name||"?"}</span>
       <div className="flex gap-0.5 flex-wrap justify-center">
         {isPres && <Badge v="warning">PRES</Badge>}
@@ -182,7 +190,7 @@ function Seat({ p, role, isPres, isChan, reveal, alive, model, style }) {
 }
 
 /* ── Table Layout ─────────────────────────────────────────── */
-function TableLayout({ players, roles, pres, chan, reveal, dead, playerModel }) {
+function TableLayout({ players, roles, pres, chan, reveal, dead, playerModel, thinkingPlayers }) {
   const [peekRoles, setPeekRoles] = useState(false);
   const showRoles = reveal || peekRoles;
 
@@ -219,6 +227,7 @@ function TableLayout({ players, roles, pres, chan, reveal, dead, playerModel }) 
       {items.map((p, i) => (
         <Seat key={p.seat} p={p} role={roles[p.name]} isPres={p.name===pres} isChan={p.name===chan}
           reveal={showRoles} alive={!dead.has(p.name)} model={showRoles?playerModel(p.name):null}
+          isThinking={thinkingPlayers?.has(p.name)}
           style={{ left: positions[i]?.left, top: positions[i]?.top, transform: 'translateX(-50%)' }}
         />
       ))}
@@ -387,16 +396,25 @@ function StatsPanel({ onClose }) {
           <SectionLabel>Recent Games</SectionLabel>
           <div className="space-y-1">
             {stats.recent_games.slice().reverse().map((g,i) => (
-              <div key={i} className="flex items-center justify-between rounded-lg border border-cream-dd bg-white/40 px-3 py-2 text-[11px] font-body">
-                <div className="flex gap-2 items-center">
-                  <Badge v={g.winner==="liberal"?"liberal":"fascist"}>{g.winner?.toUpperCase()}</Badge>
-                  <span className="text-ink-ll">{g.win_condition}</span>
+              <div key={i} className="rounded-lg border border-cream-dd bg-white/40 px-3 py-2 text-[11px] font-body space-y-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex gap-2 items-center">
+                    <Badge v={g.winner==="liberal"?"liberal":"fascist"}>{g.winner?.toUpperCase()}</Badge>
+                    <span className="text-ink-ll">{g.win_condition?.replace(/_/g, ' ')}</span>
+                  </div>
+                  <div className="flex gap-2 items-center text-ink-lll">
+                    <span>R{g.rounds}</span>
+                    <span className="text-ink-lll/50">{g.liberal_policies}L/{g.fascist_policies}F</span>
+                    {g.seed != null && <span className="text-ink-lll/40">#{g.seed}</span>}
+                  </div>
                 </div>
-                <div className="flex gap-2 items-center text-ink-lll">
-                  <span>R{g.rounds}</span>
-                  <span className="text-lib">{g.liberal_model}</span>
-                  <span className="text-ink-lll">vs</span>
-                  <span className="text-fas">{g.fascist_model}</span>
+                <div className="flex items-center justify-between text-[10px] text-ink-lll">
+                  <div className="flex gap-1 items-center">
+                    <span className="text-lib">{g.liberal_model || 'mock'}</span>
+                    <span>vs</span>
+                    <span className="text-fas">{g.fascist_model || 'mock'}</span>
+                  </div>
+                  <span className="text-ink-lll/40">{g.timestamp?.substring(0,10)}</span>
                 </div>
               </div>
             ))}
@@ -486,6 +504,7 @@ function App() {
   const [usage, setUsage] = useState(null);
   const [ctxStats, setCtxStats] = useState(null);
   const [dead, setDead] = useState(new Set());
+  const [thinkingPlayers, setThinkingPlayers] = useState(new Set());
 
   const wsRef = useRef(null);
   useEffect(() => { fetch("/api/models").then(r=>r.json()).then(setModels).catch(()=>{}); }, []);
@@ -497,11 +516,9 @@ function App() {
     setResult(null); setUsage(null); setDead(new Set()); setRunning(true);
 
     const wsUrl = `${location.protocol==="https:"?"wss:":"ws:"}//${location.host}/ws/game`;
-    console.log("Connecting to:", wsUrl);
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
     ws.onopen = () => {
-      console.log("WebSocket connected");
       ws.send(JSON.stringify({
         liberal_model: libModel==="mock"?null:libModel,
         fascist_model: fasModel==="mock"?null:fasModel,
@@ -512,25 +529,26 @@ function App() {
     ws.onerror = (err) => console.error("WebSocket error:", err);
     ws.onmessage = (e) => {
       const {type, data} = JSON.parse(e.data);
-      console.log("Event:", type);
       switch(type) {
         case "game_start": setPlayers(data.players||[]); setRoles(data.roles||{}); addMsg({type:"system",message:"Game started"}); break;
         case "round_start": setRound(data.round); setPres(data.president); setChan(null); addMsg({type:"system",message:`--- Round ${data.round} ---`}); break;
         case "board_state": setLibPol(data.liberal||0); setFasPol(data.fascist||0); setElecTrack(data.election_tracker||0); break;
-        case "nomination": case "nomination_fallback": setChan(data.nominee); addMsg({type:"nomination",...data}); break;
+        case "nomination": case "nomination_fallback": setChan(data.nominee); setThinkingPlayers(new Set()); addMsg({type:"nomination",...data}); break;
         case "vote_result":
+          setThinkingPlayers(new Set());
           if (!data.passed) {
             setChan(null);
-            setElecTrack(p => p + 1);  // failed vote advances tracker instantly
+            setElecTrack(p => p + 1);
           } else {
-            setElecTrack(0);  // passed vote resets tracker
+            setElecTrack(0);
           }
           addMsg({type:"vote_result",...data});
           break;
         case "chancellor_enact":
+          setThinkingPlayers(new Set());
           if (data.enacted === "liberal") setLibPol(p => p + 1);
           else setFasPol(p => p + 1);
-          setElecTrack(0);  // policy enacted resets tracker
+          setElecTrack(0);
           addMsg({type:"chancellor_enact",...data});
           break;
         case "chaos_policy":
@@ -539,16 +557,16 @@ function App() {
           setElecTrack(0);  // chaos resets tracker
           addMsg({type:"chaos_policy",...data});
           break;
-        case "president_draw": addMsg({type:"president_draw",...data}); break;
+        case "president_draw": setThinkingPlayers(new Set()); addMsg({type:"president_draw",...data}); break;
         case "president_pass": addMsg({type:"president_pass",...data}); break;
-        case "discussion": addMsg({type:"discussion",...data}); break;
-        case "discussion_silence": addMsg({type:"discussion_silence",...data}); break;
-        case "inner_thought": addMsg({type:"inner_thought",...data}); break;
-        case "investigation": addMsg({type:"investigation",...data}); break;
-        case "special_election": addMsg({type:"special_election",...data}); break;
-        case "execution": setDead(prev=>new Set([...prev,data.target])); addMsg({type:"execution",...data}); break;
-        case "hitler_assassinated": addMsg({type:"hitler_assassinated",...data}); break;
-        case "hitler_elected_chancellor": addMsg({type:"hitler_elected_chancellor",...data}); break;
+        case "discussion": setThinkingPlayers(new Set()); addMsg({type:"discussion",...data}); break;
+        case "discussion_silence": setThinkingPlayers(new Set()); addMsg({type:"discussion_silence",...data}); break;
+        case "inner_thought": setThinkingPlayers(new Set()); addMsg({type:"inner_thought",...data}); break;
+        case "investigation": setThinkingPlayers(new Set()); addMsg({type:"investigation",...data}); break;
+        case "special_election": setThinkingPlayers(new Set()); addMsg({type:"special_election",...data}); break;
+        case "execution": setThinkingPlayers(new Set()); setDead(prev=>new Set([...prev,data.target])); addMsg({type:"execution",...data}); break;
+        case "hitler_assassinated": setThinkingPlayers(new Set()); addMsg({type:"hitler_assassinated",...data}); break;
+        case "hitler_elected_chancellor": setThinkingPlayers(new Set()); addMsg({type:"hitler_elected_chancellor",...data}); break;
         case "hitler_chancellor_check": addMsg({type:"system",message:`${data.chancellor} confirmed NOT Hitler`}); break;
         case "veto_unlocked": addMsg({type:"system",message:"VETO POWER unlocked"}); break;
         case "veto_proposed": addMsg({type:"system",message:"Chancellor proposes VETO"}); break;
@@ -556,12 +574,20 @@ function App() {
         case "game_end": setReveal(true); setResult(data); addMsg({type:"system",message:`GAME OVER: ${data.winner?.toUpperCase()} wins -- ${data.condition}`}); break;
         case "usage": setUsage(data); break;
         case "context_stats": setCtxStats(data); break;
-        case "thinking": addMsg({type:"thinking",...data}); break;
+        case "thinking":
+          // Set which players are thinking — "All players" means everyone alive
+          if (data.player === "All players") {
+            setThinkingPlayers(new Set(players.filter(p=>!dead.has(p.name)).map(p=>p.name)));
+          } else {
+            setThinkingPlayers(new Set([data.player]));
+          }
+          // Don't add to feed — spinners on avatars are enough
+          break;
         case "game_complete": setRunning(false); break;
         case "error": addMsg({type:"system",message:`ERROR: ${data.message}`}); setRunning(false); break;
       }
     };
-    ws.onclose = (e) => { console.log("WebSocket closed:", e.code, e.reason); setRunning(false); };
+    ws.onclose = () => setRunning(false);
     // onerror already set above
   }, [libModel, fasModel, seed, discussion, reasoning, addMsg]);
 
@@ -686,7 +712,7 @@ function App() {
           {/* Players around the table */}
           <div className="border-b border-cream-dd bg-white/20 px-4 pt-3 pb-4 shrink-0">
             <TableLayout players={players} roles={roles} pres={pres} chan={chan}
-              reveal={reveal} dead={dead} playerModel={playerModel} />
+              reveal={reveal} dead={dead} playerModel={playerModel} thinkingPlayers={thinkingPlayers} />
           </div>
 
           {/* Feed */}

@@ -63,38 +63,6 @@ python server.py --port 5050
 # Open http://localhost:5050
 ```
 
-## CLI Usage
-
-```bash
-# Mock mode (random players, instant, free)
-python main.py --seed 42 --no-discussion
-python main.py --seed 42 --games 10 --no-discussion    # batch 10 games
-python main.py --seed 42 --stream                       # live terminal output
-python main.py --seed 42 --verbose                      # full transcript after
-
-# LLM mode
-python main.py --model google/gemini-2.5-flash --stream
-python main.py --model openai/gpt-4.1-nano --no-discussion --games 5
-python main.py --model deepseek/deepseek-v3.2 --stream --output game.jsonl
-
-# See all preconfigured models
-python main.py --list-models
-```
-
-### CLI Flags
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--model MODEL` | mock | OpenRouter model ID |
-| `--seed N` | random | Random seed for reproducibility |
-| `--games N` | 1 | Number of games to run |
-| `--stream` | off | Live-print events as they happen |
-| `--verbose` | off | Print full transcript after game |
-| `--no-discussion` | off | Skip all discussion phases |
-| `--output FILE` | none | Save JSONL game log |
-| `--request-delay N` | 0.5 | Seconds between API calls |
-| `--list-models` | | Show available models and exit |
-
 ## Web UI
 
 ```bash
@@ -119,6 +87,14 @@ The web interface provides:
 - Roles: 5 Liberals, 2 Fascists, 1 Hitler
 - Fascists know each other and know Hitler; Hitler doesn't know the Fascists
 - Policy deck: 6 Liberal + 11 Fascist tiles
+
+### The Friend Group
+
+The players aren't generic agents — they're a tight-knit group of eight friends who've been doing weekly game night for two years. Each has a real job, a distinct personality, and actual relationships with the others.
+
+**Blake** (union electrician) is dating **Rook** (mechanic) and has been friends with **Kit** (tattoo apprentice) since they were teenagers. **Avery** (software engineer) and **Drew** (teacher, the host) have been best friends since college and carpool to game night. **Casey** (ER nurse) and **Ellis** (journalist) are roommates. **Morgan** (bookkeeper) and Ellis text constantly. **Finley** (line cook) is the newest — Kit brought them in a few months ago. **Tam** (postal carrier) only knows Drew from being neighbors and is still finding their footing.
+
+Every AI player gets the full cast list with all these relationships, so they know who's close, who might defend who, and whose silence means something different. It adds a layer of organic social dynamics that pure game-theory agents miss — Blake will instinctively defend Rook, Ellis and Morgan operate like a hive mind, and nobody really knows what Tam is thinking yet.
 
 ### Each Round
 1. **Discussion** — priority speakers, directed callouts, organic back-and-forth
@@ -176,29 +152,37 @@ View stats via the web UI (History button) or the API:
 curl http://localhost:5050/api/stats
 ```
 
-## Architecture
+## CLI Reference
 
+```bash
+# Mock mode (random players, instant, free)
+python main.py --seed 42 --no-discussion
+python main.py --seed 42 --games 10 --no-discussion    # batch 10 games
+python main.py --seed 42 --stream                       # live terminal output
+python main.py --seed 42 --verbose                      # full transcript after
+
+# LLM mode
+python main.py --model google/gemini-2.5-flash --stream
+python main.py --model openai/gpt-4.1-nano --no-discussion --games 5
+python main.py --model deepseek/deepseek-v3.2 --stream --output game.jsonl
+
+# See all preconfigured models
+python main.py --list-models
 ```
-secret_hitler/
-  models.py          # Enums, data structures, board powers
-  names.py           # Player personalities and group context
-  policy_deck.py     # Draw pile, discard, reshuffle
-  schemas.py         # Pydantic response models for all LLM decisions
-  game_state.py      # Authoritative game state
-  player_view.py     # Information-hiding boundary
-  player.py          # Player ABC, LLMPlayer, MockPlayer
-  arbiter.py         # Full game engine and discussion system
-  prompts.py         # System prompts and per-action prompt templates
-  llm_client.py      # OpenRouter async client with auto-fallback
-  model_config.py    # Model registry and auto-detection
-  game_db.py         # Game history storage
-  log.py             # Structured event logging
-  stream.py          # Terminal streaming printer
-static/
-  index.html         # Web UI (React + Tailwind)
-main.py              # CLI entry point
-server.py            # FastAPI + WebSocket server
-```
+
+### CLI Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--model MODEL` | mock | OpenRouter model ID |
+| `--seed N` | random | Random seed for reproducibility |
+| `--games N` | 1 | Number of games to run |
+| `--stream` | off | Live-print events as they happen |
+| `--verbose` | off | Print full transcript after game |
+| `--no-discussion` | off | Skip all discussion phases |
+| `--output FILE` | none | Save JSONL game log |
+| `--request-delay N` | 0.5 | Seconds between API calls |
+| `--list-models` | | Show available models and exit |
 
 ## Attribution
 
@@ -209,4 +193,4 @@ This project is a non-commercial research tool for evaluating LLM capabilities i
 
 ## License
 
-MIT — see [LICENSE](LICENSE) for details.
+Dual-licensed — see [LICENSE](LICENSE) for details. Game mechanics under CC BY-NC-SA 4.0, benchmarking framework under MIT.

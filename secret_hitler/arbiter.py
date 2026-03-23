@@ -593,6 +593,7 @@ class GameArbiter:
         """
         agent = self._player_agent(seat)
         view = self._view(seat)
+        self._emit("thinking", {"player": self._name(seat), "action": "considering"})
         try:
             response = await agent.discussion_intent(
                 view, context, turn_number, speakers_so_far,
@@ -747,7 +748,7 @@ class GameArbiter:
             for attempt in range(MAX_RETRIES):
                 try:
                     response = await self._player_agent(seat).vote(view)
-                    return seat, Vote(response.vote)
+                    return seat, Vote(response.vote_normalized)
                 except Exception as e:
                     logger.warning("Player action failed (attempt %d): %s", attempt + 1, e)
             # Fallback
@@ -955,6 +956,7 @@ class GameArbiter:
         ]
         if not eligible_seats:
             return
+        self._emit("thinking", {"player": self._name(president_seat), "action": "choosing investigation target"})
 
         eligible_names = [self._name(s) for s in eligible_seats]
         view = self._view(president_seat)
@@ -997,6 +999,7 @@ class GameArbiter:
             s for s in self.state.alive_seats if s != president_seat
         ]
         eligible_names = [self._name(s) for s in eligible_seats]
+        self._emit("thinking", {"player": self._name(president_seat), "action": "calling special election"})
         view = self._view(president_seat)
 
         for attempt in range(MAX_RETRIES):
@@ -1047,6 +1050,7 @@ class GameArbiter:
             s for s in self.state.alive_seats if s != president_seat
         ]
         eligible_names = [self._name(s) for s in eligible_seats]
+        self._emit("thinking", {"player": self._name(president_seat), "action": "choosing execution target"})
         view = self._view(president_seat)
 
         for attempt in range(MAX_RETRIES):

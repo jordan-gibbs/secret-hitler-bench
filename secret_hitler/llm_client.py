@@ -256,9 +256,8 @@ class OpenRouterClient(LLMClient):
         # Reasoning — never sent. Models use their own defaults.
         # Our inner_thought schema field handles strategic reasoning manually.
 
-        # Require parameters — only level 0
-        if fallback_level == 0:
-            body["provider"] = {"require_parameters": True}
+        # Don't use require_parameters — it causes 404s on many models.
+        # Our fallback system handles incompatibility gracefully.
 
         return body
 
@@ -308,6 +307,9 @@ class OpenRouterClient(LLMClient):
         """
         text = raw.strip()
 
+        if not text:
+            raise ValueError("Model returned empty response")
+
         # Try direct parse first
         try:
             json.loads(text)
@@ -356,9 +358,9 @@ class OpenRouterClient(LLMClient):
         http = await self._get_http()
 
         # Try with progressively simpler parameters on 404
-        # 0: json_schema + require_parameters
+        # 0: json_schema (if model supports it) or json_object
         # 1: json_object
-        # 2: json_object (no require_params)
+        # 2: json_object (minimal)
         # 3: prompt-based JSON (no response_format)
         # 4: bare minimum (model + messages + max_tokens only)
         # Start from the last level that worked to avoid repeating failures
