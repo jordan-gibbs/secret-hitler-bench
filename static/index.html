@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secret Hitler Bench</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23F5F0E1'/><text x='50' y='68' text-anchor='middle' font-size='52' font-family='serif' fill='%232C2416'>SH</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        cream:     '#F5F0E1',
+        'cream-d': '#EDE7D3',
+        'cream-dd':'#DED6C0',
+        ink:       '#2C2416',
+        'ink-l':   '#5C4F3A',
+        'ink-ll':  '#8A7D68',
+        'ink-lll': '#B0A790',
+        lib:       '#1B6B93',
+        'lib-l':   '#2B8FBF',
+        'lib-bg':  '#D6EAF2',
+        fas:       '#8B2500',
+        'fas-l':   '#B33A1A',
+        'fas-bg':  '#F2D6CC',
+        'fas-dk':  '#5C1A00',
+        amber:     '#C47F17',
+        'amber-bg':'#F5EDCC',
+      },
+      fontFamily: {
+        display: ['"Bebas Neue"', 'sans-serif'],
+        body:    ['"DM Sans"', 'system-ui', 'sans-serif'],
+      },
+    }
+  }
+}
+</script>
+<style>
+  * { box-sizing: border-box; }
+  body { background: #F5F0E1; color: #2C2416; font-family: 'DM Sans', system-ui, sans-serif; margin: 0; }
+  .scrollbar-thin::-webkit-scrollbar { width: 5px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: #DED6C0; border-radius: 3px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #B0A790; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(4px) } to { opacity:1; transform:translateY(0) } }
+  .anim-in { animation: fadeUp .15s ease-out; }
+  select, input[type=number] { background: #EDE7D3; }
+  select:focus, input:focus { outline: 2px solid #C47F17; outline-offset: -1px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const cn = (...c) => c.filter(Boolean).join(" ");
+
+/* ── Primitives ─────────────────────────────────────────── */
+function Badge({ children, v="default", className }) {
+  const s = {
+    default:  "bg-cream-dd text-ink-ll",
+    liberal:  "bg-lib-bg text-lib border border-lib/20",
+    fascist:  "bg-fas-bg text-fas border border-fas/20",
+    hitler:   "bg-fas-dk text-cream border border-fas-dk/40 font-bold",
+    success:  "bg-emerald-100 text-emerald-800 border border-emerald-200",
+    warning:  "bg-amber-bg text-amber border border-amber/20",
+    dead:     "bg-cream-dd text-ink-lll border border-cream-dd",
+  };
+  return <span className={cn("inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold font-body tracking-wide", s[v], className)}>{children}</span>;
+}
+
+function Card({ children, className }) {
+  return <div className={cn("rounded-xl border border-cream-dd bg-white/60 p-3 shadow-sm", className)}>{children}</div>;
+}
+
+function Btn({ children, onClick, disabled, v="default", className }) {
+  const s = {
+    default: "bg-ink text-cream hover:bg-ink-l",
+    outline: "border-2 border-ink/20 text-ink hover:bg-cream-dd",
+    danger:  "border-2 border-fas/30 text-fas hover:bg-fas-bg",
+    ghost:   "text-ink-ll hover:text-ink hover:bg-cream-dd",
+  };
+  return <button onClick={onClick} disabled={disabled} className={cn("rounded-lg px-3 py-1.5 text-xs font-semibold font-body transition-colors disabled:opacity-30", s[v], className)}>{children}</button>;
+}
+
+function SectionLabel({ children }) {
+  return <div className="font-display text-[13px] tracking-[0.15em] text-ink-ll uppercase mb-1">{children}</div>;
+}
+
+/* ── Lucide Icon Helper ─────────────────────────────────── */
+function LIcon({ name, size=14, className="" }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current && window.lucide) {
+      ref.current.innerHTML = `<i data-lucide="${name}" style="width:${size}px;height:${size}px"></i>`;
+      window.lucide.createIcons({attrs:{class:className}, nameAttr:'data-lucide'});
+    }
+  }, [name, size]);
+  return <span ref={ref} className={cn("inline-flex items-center justify-center", className)} />;
+}
+
+/* ── Policy Track ───────────────────────────────────────── */
+function Track({ type, count, max }) {
+  const lib = type === "liberal";
+  // Fascist powers: null, search, vote, skull, skull+shield, skull
+  const fasIcons = [null, "search", "landmark", "skull", "shield", "flame"];
+  const libIcons = [null, null, null, null, "trophy"];
+  const icons = lib ? libIcons : fasIcons;
+  const clr = lib ? "text-lib/40" : "text-fas/40";
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <span className={cn("font-display text-sm tracking-wider", lib ? "text-lib" : "text-fas")}>{type.toUpperCase()}</span>
+        <span className="text-[10px] font-body text-ink-lll font-medium">{count}/{max}</span>
+      </div>
+      <div className="flex gap-1">{Array.from({length:max}).map((_,i)=>(
+        <div key={i} className={cn("h-8 w-8 rounded border-2 transition-all duration-300 flex items-center justify-center",
+          i < count
+            ? lib ? "bg-lib border-lib shadow-sm" : "bg-fas border-fas shadow-sm"
+            : "bg-cream-d/60 border-cream-dd"
+        )}>
+          {icons[i] && i >= count && <LIcon name={icons[i]} size={12} className={clr}/>}
+        </div>
+      ))}</div>
+    </div>
+  );
+}
+
+function ElecTracker({ count }) {
+  return (
+    <div>
+      <SectionLabel>Election Tracker</SectionLabel>
+      <div className="flex gap-1 items-center">
+        {[0,1,2].map(i=>(
+          <div key={i} className={cn("h-6 flex-1 rounded border-2 transition-all",
+            i < count ? "bg-amber border-amber shadow-sm" : "bg-cream-d/60 border-cream-dd"
+          )}/>
+        ))}
+        <span className="text-[10px] text-ink-lll font-body ml-1">= Chaos</span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Player Seat ────────────────────────────────────────── */
+function Seat({ p, role, isPres, isChan, reveal, alive, model, style }) {
+  const a = alive !== false;
+  return (
+    <div style={style} className={cn("absolute flex flex-col items-center gap-0.5 p-2 rounded-xl border-2 transition-all w-[88px]",
+      !a ? "opacity-30 border-cream-dd bg-cream-d/30" :
+      isPres ? "border-amber/50 bg-amber-bg/40 shadow-md" :
+      isChan ? "border-lib/40 bg-lib-bg/40 shadow-md" :
+      "border-cream-dd bg-white/60 hover:border-ink-lll/40"
+    )}>
+      <div className={cn("w-9 h-9 rounded-full flex items-center justify-center font-display text-sm tracking-wide",
+        !a ? "bg-cream-dd text-ink-lll" :
+        reveal && role==="hitler" ? "bg-fas-dk text-cream" :
+        reveal && role==="fascist" ? "bg-fas text-cream" :
+        reveal && role==="liberal" ? "bg-lib text-cream" :
+        "bg-cream-dd text-ink"
+      )}>{p?.name?.[0]||"?"}</div>
+      <span className={cn("text-[11px] font-semibold font-body", !a && "line-through text-ink-lll")}>{p?.name||"?"}</span>
+      <div className="flex gap-0.5 flex-wrap justify-center">
+        {isPres && <Badge v="warning">PRES</Badge>}
+        {isChan && <Badge v="success">CHAN</Badge>}
+        {!a && <Badge v="dead">DEAD</Badge>}
+        {reveal && role==="hitler" && <Badge v="hitler">HITLER</Badge>}
+        {reveal && role==="fascist" && <Badge v="fascist">FASCIST</Badge>}
+        {reveal && role==="liberal" && <Badge v="liberal">LIBERAL</Badge>}
+      </div>
+      {model && <span className="text-[9px] text-ink-lll truncate max-w-full font-body">{model}</span>}
+    </div>
+  );
+}
+
+/* ── Table Layout ─────────────────────────────────────────── */
+function TableLayout({ players, roles, pres, chan, reveal, dead, playerModel }) {
+  const [peekRoles, setPeekRoles] = useState(false);
+  const showRoles = reveal || peekRoles;
+
+  const positions = [
+    { left: '27%', top: '0px' },
+    { left: '50%', top: '0px' },
+    { left: '73%', top: '0px' },
+    { left: '88%', top: '156px' },
+    { left: '73%', top: '312px' },
+    { left: '50%', top: '312px' },
+    { left: '27%', top: '312px' },
+    { left: '12%', top: '156px' },
+  ];
+
+  const items = players.length ? players : Array.from({length:8},(_,i)=>({seat:i,name:`Seat ${i}`}));
+
+  return (
+    <div className="relative w-full max-w-2xl mx-auto" style={{height: '468px'}}>
+      {/* Eye toggle in the center of the table */}
+      <div className="absolute z-10" style={{left:'50%', top:'210px', transform:'translate(-50%, -50%)'}}>
+        <button onClick={() => setPeekRoles(!peekRoles)} title={peekRoles ? "Hide roles" : "Peek at roles"}
+          className={cn(
+            "w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all",
+            peekRoles
+              ? "bg-fas-bg border-fas/30 text-fas"
+              : "bg-white/60 border-cream-dd text-ink-lll hover:border-ink-ll hover:text-ink-ll"
+          )}>
+          {peekRoles
+            ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          }
+        </button>
+      </div>
+      {items.map((p, i) => (
+        <Seat key={p.seat} p={p} role={roles[p.name]} isPres={p.name===pres} isChan={p.name===chan}
+          reveal={showRoles} alive={!dead.has(p.name)} model={showRoles?playerModel(p.name):null}
+          style={{ left: positions[i]?.left, top: positions[i]?.top, transform: 'translateX(-50%)' }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ── Expandable Thought ────────────────────────────────── */
+function Thought({ speaker, thought }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!thought) return null;
+  const preview = thought.length > 200 ? thought.substring(0, 200) + "..." : thought;
+  const needsExpand = thought.length > 200;
+  return (
+    <div className="py-0.5 px-3 text-ink-lll/50 text-xs italic border-l-2 border-cream-dd ml-2">
+      <span>[{speaker}: {expanded ? thought : preview}]</span>
+      {needsExpand && (
+        <button onClick={() => setExpanded(!expanded)}
+          className="ml-1 text-ink-ll/60 hover:text-ink-ll underline text-[10px]">
+          {expanded ? "less" : "more"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ── Message Feed ───────────────────────────────────────── */
+function Feed({ messages, showThoughts }) {
+  const containerRef = useRef(null);
+  const endRef = useRef(null);
+  const isAnchoredRef = useRef(true);
+
+  // Track if user is scrolled to bottom (anchored)
+  const onScroll = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    isAnchoredRef.current = atBottom;
+  }, []);
+
+  // Only auto-scroll if anchored to bottom
+  useEffect(() => {
+    if (isAnchoredRef.current) {
+      const el = containerRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    }
+  }, [messages]);
+
+  return (
+    <div ref={containerRef} onScroll={onScroll}
+      className="flex-1 overflow-y-auto scrollbar-thin space-y-1 pr-1 text-sm font-body leading-relaxed">
+      {messages.filter(m => m.type !== "inner_thought" || showThoughts).map((m,i) => (
+        <div key={i} className="anim-in">
+          {m.type==="discussion" && <div className="py-1 px-3 rounded-lg hover:bg-cream-d/50">
+            {m.directed_at
+              ? <><span className="text-lib font-semibold">{m.speaker}</span><span className="text-ink-lll mx-1.5">&rarr;</span><span className="text-fas font-semibold">{m.directed_at}</span><span className="text-ink-l">: "{m.message}"</span></>
+              : <><span className="text-lib font-semibold">{m.speaker}</span><span className="text-ink-l">: "{m.message}"</span></>}
+          </div>}
+          {m.type==="discussion_silence" && <div className="py-1 px-3 text-ink-lll italic">{m.speaker} remains silent.</div>}
+          {m.type==="inner_thought" && <Thought speaker={m.speaker} thought={m.thought}/>}
+          {m.type==="nomination" && <div className="py-1.5 px-3">
+            <span className="text-ink font-semibold">{m.president}</span>
+            <span className="text-ink-ll"> nominates </span>
+            <span className="text-amber font-bold">{m.nominee}</span>
+            <span className="text-ink-ll"> as Chancellor</span>
+          </div>}
+          {m.type==="president_draw" && <div className="py-1 px-3 flex items-center gap-1.5 text-xs text-ink-ll">
+            <span className="font-semibold text-ink">{m.president}</span>
+            <span>draws</span>
+            {m.cards?.map((c,j) => (
+              <span key={j} className={cn("inline-flex items-center justify-center w-5 h-7 rounded border text-[9px] font-bold",
+                c==="liberal" ? "bg-lib/20 border-lib/30 text-lib" : "bg-fas/20 border-fas/30 text-fas"
+              )}>{c==="liberal"?"L":"F"}</span>
+            ))}
+          </div>}
+          {m.type==="president_pass" && <div className="py-1 px-3 flex items-center gap-1.5 text-xs text-ink-ll">
+            <span>passes</span>
+            {m.passed?.map((c,j) => (
+              <span key={j} className={cn("inline-flex items-center justify-center w-5 h-7 rounded border text-[9px] font-bold",
+                c==="liberal" ? "bg-lib/20 border-lib/30 text-lib" : "bg-fas/20 border-fas/30 text-fas"
+              )}>{c==="liberal"?"L":"F"}</span>
+            ))}
+            <span>to <span className="font-semibold text-ink">{m.chancellor}</span></span>
+            <span className="text-ink-lll">(discarded <span className={m.discarded==="liberal"?"text-lib":"text-fas"}>{m.discarded==="liberal"?"L":"F"}</span>)</span>
+          </div>}
+          {m.type==="vote_result" && <div className="py-2 px-3 rounded-lg bg-white/80 border border-cream-dd space-y-1.5">
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+              {m.votes && Object.entries(m.votes).map(([n,v])=>(
+                <span key={n} className={cn("font-medium", v==="ja"?"text-lib":"text-fas")}>{n}: {v==="ja"?"Ja":"Nein"}</span>
+              ))}
+            </div>
+            <div className={cn("text-xs font-bold font-display tracking-wider", m.passed ? "text-lib" : "text-fas")}>
+              {m.ja} JA / {m.nein} NEIN &mdash; {m.passed ? "PASSED" : "FAILED"}
+            </div>
+          </div>}
+          {m.type==="chancellor_enact" && <div className={cn("py-1.5 px-3 rounded-lg text-xs font-bold font-display tracking-wider border",
+            m.enacted==="liberal" ? "bg-lib-bg text-lib border-lib/20" : "bg-fas-bg text-fas border-fas/20"
+          )}>POLICY ENACTED: {m.enacted?.toUpperCase()}</div>}
+          {m.type==="chaos_policy" && <div className="py-1.5 px-3 rounded-lg bg-amber-bg text-amber border border-amber/20 text-xs font-bold font-display tracking-wider">
+            CHAOS &mdash; {m.enacted?.toUpperCase()} ENACTED
+          </div>}
+          {m.type==="investigation" && <div className="py-1 px-3 text-ink-l font-medium">Investigate: {m.president} checks {m.target}</div>}
+          {m.type==="special_election" && <div className="py-1 px-3 text-ink-l font-medium">Special Election: {m.target}</div>}
+          {m.type==="execution" && <div className="py-1.5 px-3 rounded-lg bg-fas-bg text-fas border border-fas/20 font-bold font-display tracking-wider text-xs">
+            EXECUTION: {m.president} KILLS {m.target}
+          </div>}
+          {m.type==="hitler_assassinated" && <div className="py-2 px-3 rounded-lg bg-lib-bg text-lib border border-lib/30 font-bold font-display tracking-wider">
+            HITLER ASSASSINATED! {m.target} WAS HITLER!
+          </div>}
+          {m.type==="hitler_elected_chancellor" && <div className="py-2 px-3 rounded-lg bg-fas-bg text-fas-dk border border-fas/30 font-bold font-display tracking-wider">
+            HITLER ELECTED CHANCELLOR! {m.chancellor} WAS HITLER!
+          </div>}
+          {m.type==="thinking" && <div className="py-0.5 px-3 text-xs text-ink-lll italic flex items-center gap-1.5">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber animate-pulse"/>
+            {m.player} is {m.action}...
+          </div>}
+          {m.type==="system" && <div className="py-0.5 px-3 text-xs text-ink-lll">{m.message}</div>}
+        </div>
+      ))}
+      <div ref={endRef}/>
+    </div>
+  );
+}
+
+/* ── Stats Panel ────────────────────────────────────────── */
+function StatsPanel({ onClose }) {
+  const [stats, setStats] = useState(null);
+  useEffect(() => { fetch("/api/stats").then(r=>r.json()).then(setStats); }, []);
+  if (!stats) return <div className="fixed inset-0 bg-ink/40 z-50 flex items-center justify-center"><div className="bg-cream p-8 rounded-2xl font-body text-ink-ll">Loading...</div></div>;
+  return (
+    <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center" onClick={onClose}>
+      <div className="bg-cream border border-cream-dd rounded-2xl p-6 max-w-3xl w-full max-h-[80vh] overflow-y-auto scrollbar-thin shadow-xl" onClick={e=>e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-5">
+          <h2 className="font-display text-3xl tracking-wider text-ink">GAME HISTORY</h2>
+          <Btn v="ghost" onClick={onClose}>Close</Btn>
+        </div>
+        <div className="text-sm font-body text-ink-ll mb-4">{stats.total_games} total games played</div>
+
+        {stats.matchups?.length > 0 && <>
+          <SectionLabel>Matchups</SectionLabel>
+          <div className="space-y-2 mb-6">
+            {stats.matchups.map((m,i) => {
+              const libPct = m.games>0?Math.round(m.liberal_wins/m.games*100):0;
+              return (
+                <div key={i} className="rounded-xl border border-cream-dd bg-white/60 p-3 space-y-2">
+                  <div className="flex justify-between text-xs font-body">
+                    <span><span className="text-lib font-semibold">{m.liberal_model}</span> <span className="text-ink-lll">vs</span> <span className="text-fas font-semibold">{m.fascist_model}</span></span>
+                    <span className="text-ink-lll">{m.games} games</span>
+                  </div>
+                  <div className="flex h-3 rounded-full overflow-hidden bg-cream-dd">
+                    <div className="bg-lib transition-all rounded-l-full" style={{width:libPct+"%"}}/>
+                    <div className="bg-fas transition-all rounded-r-full" style={{width:(100-libPct)+"%"}}/>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-body text-ink-ll">
+                    <span className="text-lib font-medium">Liberal {m.liberal_wins}W ({libPct}%)</span>
+                    <span>Avg {m.avg_rounds?.toFixed(1)} rounds</span>
+                    <span className="text-fas font-medium">Fascist {m.fascist_wins}W ({100-libPct}%)</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>}
+
+        {stats.recent_games?.length > 0 && <>
+          <SectionLabel>Recent Games</SectionLabel>
+          <div className="space-y-1">
+            {stats.recent_games.slice().reverse().map((g,i) => (
+              <div key={i} className="flex items-center justify-between rounded-lg border border-cream-dd bg-white/40 px-3 py-2 text-[11px] font-body">
+                <div className="flex gap-2 items-center">
+                  <Badge v={g.winner==="liberal"?"liberal":"fascist"}>{g.winner?.toUpperCase()}</Badge>
+                  <span className="text-ink-ll">{g.win_condition}</span>
+                </div>
+                <div className="flex gap-2 items-center text-ink-lll">
+                  <span>R{g.rounds}</span>
+                  <span className="text-lib">{g.liberal_model}</span>
+                  <span className="text-ink-lll">vs</span>
+                  <span className="text-fas">{g.fascist_model}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>}
+
+        {stats.total_games === 0 && <div className="text-center text-ink-lll font-body py-12">No games played yet. Start one!</div>}
+      </div>
+    </div>
+  );
+}
+
+/* ── Model Select ───────────────────────────────────────── */
+function ModelSelect({ label, value, onChange, models, disabled, team }) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  const selectedName = value === "mock" ? "Mock (Random)" : (models.find(m=>m.id===value)?.name || value);
+  const filtered = search
+    ? models.filter(m => m.name.toLowerCase().includes(search.toLowerCase()) || m.id.toLowerCase().includes(search.toLowerCase()))
+    : models;
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <div className={cn("font-display text-xs tracking-[0.15em] mb-0.5", team==="liberal"?"text-lib":"text-fas")}>{label}</div>
+      <button onClick={()=>!disabled && setOpen(!open)} disabled={disabled}
+        className="w-full rounded-lg border border-cream-dd px-2 py-1.5 text-[11px] font-body text-ink text-left disabled:opacity-30 bg-cream-d/40 hover:bg-cream-d/70 truncate">
+        {selectedName}
+      </button>
+      {open && <div className="absolute z-50 mt-1 w-full bg-cream border border-cream-dd rounded-lg shadow-lg max-h-64 overflow-hidden flex flex-col">
+        <input
+          type="text" value={search} onChange={e=>setSearch(e.target.value)}
+          placeholder="Search models..."
+          autoFocus
+          className="px-2 py-1.5 text-[11px] font-body text-ink border-b border-cream-dd bg-white/60 outline-none"
+        />
+        <div className="overflow-y-auto scrollbar-thin flex-1">
+          <button onClick={()=>{onChange("mock");setOpen(false);setSearch("");}}
+            className={cn("w-full text-left px-2 py-1.5 text-[11px] font-body hover:bg-cream-dd/50", value==="mock"&&"bg-cream-dd font-semibold")}>
+            Mock (Random)
+          </button>
+          {filtered.map(m=>(
+            <button key={m.id} onClick={()=>{onChange(m.id);setOpen(false);setSearch("");}}
+              className={cn("w-full text-left px-2 py-1 hover:bg-cream-dd/50 border-t border-cream-dd/30", value===m.id&&"bg-cream-dd")}>
+              <div className="text-[11px] font-body font-medium text-ink truncate">{m.name}</div>
+              <div className="text-[9px] text-ink-lll truncate">{m.notes}</div>
+            </button>
+          ))}
+          {filtered.length === 0 && <div className="px-2 py-3 text-[10px] text-ink-lll text-center">No models found</div>}
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+/* ── App ────────────────────────────────────────────────── */
+function App() {
+  const [models, setModels] = useState([]);
+  const [libModel, setLibModel] = useState("mock");
+  const [fasModel, setFasModel] = useState("mock");
+  const [seed, setSeed] = useState("");
+  const [discussion, setDiscussion] = useState(true);
+  const [reasoning, setReasoning] = useState(true);
+  const [showThoughts, setShowThoughts] = useState(true);
+  const [showStats, setShowStats] = useState(false);
+  const [running, setRunning] = useState(false);
+
+  const [players, setPlayers] = useState([]);
+  const [roles, setRoles] = useState({});
+  const [reveal, setReveal] = useState(false);
+  const [libPol, setLibPol] = useState(0);
+  const [fasPol, setFasPol] = useState(0);
+  const [elecTrack, setElecTrack] = useState(0);
+  const [round, setRound] = useState(0);
+  const [pres, setPres] = useState(null);
+  const [chan, setChan] = useState(null);
+  const [msgs, setMsgs] = useState([]);
+  const [result, setResult] = useState(null);
+  const [usage, setUsage] = useState(null);
+  const [ctxStats, setCtxStats] = useState(null);
+  const [dead, setDead] = useState(new Set());
+
+  const wsRef = useRef(null);
+  useEffect(() => { fetch("/api/models").then(r=>r.json()).then(setModels).catch(()=>{}); }, []);
+  const addMsg = useCallback((m) => setMsgs(prev=>[...prev, m]), []);
+
+  const startGame = useCallback(() => {
+    setPlayers([]); setRoles({}); setReveal(false); setLibPol(0); setFasPol(0);
+    setElecTrack(0); setRound(0); setPres(null); setChan(null); setMsgs([]);
+    setResult(null); setUsage(null); setDead(new Set()); setRunning(true);
+
+    const wsUrl = `${location.protocol==="https:"?"wss:":"ws:"}//${location.host}/ws/game`;
+    console.log("Connecting to:", wsUrl);
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+    ws.onopen = () => {
+      console.log("WebSocket connected");
+      ws.send(JSON.stringify({
+        liberal_model: libModel==="mock"?null:libModel,
+        fascist_model: fasModel==="mock"?null:fasModel,
+        seed: seed === "" ? null : parseInt(seed),
+        discussion, reasoning,
+      }));
+    };
+    ws.onerror = (err) => console.error("WebSocket error:", err);
+    ws.onmessage = (e) => {
+      const {type, data} = JSON.parse(e.data);
+      console.log("Event:", type);
+      switch(type) {
+        case "game_start": setPlayers(data.players||[]); setRoles(data.roles||{}); addMsg({type:"system",message:"Game started"}); break;
+        case "round_start": setRound(data.round); setPres(data.president); setChan(null); addMsg({type:"system",message:`--- Round ${data.round} ---`}); break;
+        case "board_state": setLibPol(data.liberal||0); setFasPol(data.fascist||0); setElecTrack(data.election_tracker||0); break;
+        case "nomination": case "nomination_fallback": setChan(data.nominee); addMsg({type:"nomination",...data}); break;
+        case "vote_result":
+          if (!data.passed) {
+            setChan(null);
+            setElecTrack(p => p + 1);  // failed vote advances tracker instantly
+          } else {
+            setElecTrack(0);  // passed vote resets tracker
+          }
+          addMsg({type:"vote_result",...data});
+          break;
+        case "chancellor_enact":
+          if (data.enacted === "liberal") setLibPol(p => p + 1);
+          else setFasPol(p => p + 1);
+          setElecTrack(0);  // policy enacted resets tracker
+          addMsg({type:"chancellor_enact",...data});
+          break;
+        case "chaos_policy":
+          if (data.enacted === "liberal") setLibPol(p => p + 1);
+          else setFasPol(p => p + 1);
+          setElecTrack(0);  // chaos resets tracker
+          addMsg({type:"chaos_policy",...data});
+          break;
+        case "president_draw": addMsg({type:"president_draw",...data}); break;
+        case "president_pass": addMsg({type:"president_pass",...data}); break;
+        case "discussion": addMsg({type:"discussion",...data}); break;
+        case "discussion_silence": addMsg({type:"discussion_silence",...data}); break;
+        case "inner_thought": addMsg({type:"inner_thought",...data}); break;
+        case "investigation": addMsg({type:"investigation",...data}); break;
+        case "special_election": addMsg({type:"special_election",...data}); break;
+        case "execution": setDead(prev=>new Set([...prev,data.target])); addMsg({type:"execution",...data}); break;
+        case "hitler_assassinated": addMsg({type:"hitler_assassinated",...data}); break;
+        case "hitler_elected_chancellor": addMsg({type:"hitler_elected_chancellor",...data}); break;
+        case "hitler_chancellor_check": addMsg({type:"system",message:`${data.chancellor} confirmed NOT Hitler`}); break;
+        case "veto_unlocked": addMsg({type:"system",message:"VETO POWER unlocked"}); break;
+        case "veto_proposed": addMsg({type:"system",message:"Chancellor proposes VETO"}); break;
+        case "veto_response": addMsg({type:"system",message:data.accepted?"Veto ACCEPTED":"Veto REJECTED"}); break;
+        case "game_end": setReveal(true); setResult(data); addMsg({type:"system",message:`GAME OVER: ${data.winner?.toUpperCase()} wins -- ${data.condition}`}); break;
+        case "usage": setUsage(data); break;
+        case "context_stats": setCtxStats(data); break;
+        case "thinking": addMsg({type:"thinking",...data}); break;
+        case "game_complete": setRunning(false); break;
+        case "error": addMsg({type:"system",message:`ERROR: ${data.message}`}); setRunning(false); break;
+      }
+    };
+    ws.onclose = (e) => { console.log("WebSocket closed:", e.code, e.reason); setRunning(false); };
+    // onerror already set above
+  }, [libModel, fasModel, seed, discussion, reasoning, addMsg]);
+
+  const playerModel = (name) => {
+    if (!roles[name]) return null;
+    const r = roles[name];
+    const id = r === "liberal" ? libModel : fasModel;
+    return id === "mock" ? null : id.split("/").pop();
+  };
+
+  return (
+    <div className="h-screen flex flex-col">
+      {/* Header */}
+      <header className="border-b border-cream-dd px-5 py-2.5 flex items-center justify-between bg-white/40">
+        <div className="flex items-center gap-3">
+          <h1 className="font-display text-2xl tracking-[0.12em] text-ink">SECRET HITLER</h1>
+          <span className="font-display text-xs tracking-[0.2em] text-ink-lll bg-cream-dd px-2 py-0.5 rounded">BENCH</span>
+        </div>
+        <div className="flex items-center gap-3">
+          {result && (
+            <div className={cn("font-display text-lg tracking-wider", result.winner==="liberal"?"text-lib":"text-fas")}>
+              {result.winner?.toUpperCase()} WINS
+            </div>
+          )}
+          {running && !result && (
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-amber animate-pulse"/>
+              <span className="font-display text-sm tracking-wider text-ink-ll">ROUND {round}</span>
+            </div>
+          )}
+          <Btn v="ghost" onClick={()=>setShowStats(true)}>History</Btn>
+        </div>
+      </header>
+
+      <div className="flex-1 flex min-h-0">
+        {/* Sidebar */}
+        <aside className="w-72 border-r border-cream-dd bg-white/30 flex flex-col shrink-0">
+          <div className="p-3 space-y-3 overflow-y-auto scrollbar-thin flex-1">
+            <Card>
+              <div className="space-y-2.5">
+                <ModelSelect label="LIBERAL TEAM" value={libModel} onChange={setLibModel} models={models} disabled={running} team="liberal"/>
+                <ModelSelect label="FASCIST TEAM" value={fasModel} onChange={setFasModel} models={models} disabled={running} team="fascist"/>
+                <div>
+                  <SectionLabel>Seed</SectionLabel>
+                  <input type="number" value={seed} onChange={e=>setSeed(e.target.value)} placeholder="Random" disabled={running}
+                    className="w-full rounded-lg border border-cream-dd px-2 py-1.5 text-[11px] font-body text-ink disabled:opacity-30"/>
+                </div>
+                <div className="space-y-1.5 pt-1">
+                  <label className="flex items-center gap-2 text-[11px] font-body cursor-pointer text-ink-l">
+                    <input type="checkbox" checked={discussion} onChange={e=>setDiscussion(e.target.checked)} disabled={running} className="rounded accent-amber"/>Discussion
+                  </label>
+                  <label className="flex items-center gap-2 text-[11px] font-body cursor-pointer text-ink-l">
+                    <input type="checkbox" checked={reasoning} onChange={e=>setReasoning(e.target.checked)} disabled={running} className="rounded accent-amber"/>Reasoning
+                  </label>
+                  <label className="flex items-center gap-2 text-[11px] font-body cursor-pointer text-ink-l">
+                    <input type="checkbox" checked={showThoughts} onChange={e=>setShowThoughts(e.target.checked)} className="rounded accent-amber"/>Show Thoughts
+                  </label>
+                </div>
+                {!running
+                  ? <Btn onClick={startGame} className="w-full mt-1">Start Game</Btn>
+                  : <Btn v="danger" onClick={()=>{
+                    try { wsRef.current?.send("stop"); } catch(e) {}
+                    wsRef.current?.close();
+                    setRunning(false);
+                  }} className="w-full mt-1">Stop</Btn>
+                }
+              </div>
+            </Card>
+
+            <Card className="space-y-3">
+              <Track type="liberal" count={libPol} max={5}/>
+              <Track type="fascist" count={fasPol} max={6}/>
+              <ElecTracker count={elecTrack}/>
+            </Card>
+
+            <Card className="text-[10px] font-body text-ink-ll space-y-0.5">
+              <SectionLabel>Fascist Powers</SectionLabel>
+              {[
+                [1,"None"],
+                [2,"Investigate Loyalty"],
+                [3,"Special Election"],
+                [4,"Execution"],
+                [5,"Execution + Veto"],
+                [6,"Fascist Victory"],
+              ].map(([n,t])=>(
+                <div key={n} className={cn(
+                  n<=fasPol ? "line-through text-ink-lll/50" :
+                  n===fasPol+1 ? "text-fas font-semibold" : ""
+                )}>{n}. {t}</div>
+              ))}
+            </Card>
+
+            {usage && <Card className="text-[10px] font-body text-ink-ll space-y-0.5">
+              <SectionLabel>Token Usage</SectionLabel>
+              <div>Requests: {usage.total_requests}</div>
+              <div>Prompt: {usage.prompt_tokens?.toLocaleString()}</div>
+              <div>Completion: {usage.completion_tokens?.toLocaleString()}</div>
+              {usage.reasoning_tokens>0&&<div>Reasoning: {usage.reasoning_tokens?.toLocaleString()}</div>}
+              <div className="font-semibold text-ink pt-0.5">Total: {usage.total_tokens?.toLocaleString()}</div>
+            </Card>}
+
+            <Card className="text-[10px] font-body text-ink-ll space-y-0.5">
+              <SectionLabel>Context Window</SectionLabel>
+              {ctxStats ? <>
+                <div className="font-semibold text-ink text-xs">~{ctxStats.est_avg_tokens?.toLocaleString()} tok/call</div>
+                {ctxStats.players?.map(p => (
+                  <div key={p.name} className="flex justify-between">
+                    <span>{p.name}</span>
+                    <span className="text-ink-lll">
+                      {p.est_context_tokens ? `~${(p.est_context_tokens/1000).toFixed(1)}K` : '--'}
+                      {p.calls > 0 && <span className="text-ink-lll/50 ml-1">({p.calls}c)</span>}
+                    </span>
+                  </div>
+                ))}
+              </> : <div className="text-ink-lll italic">Waiting for game...</div>}
+            </Card>
+          </div>
+        </aside>
+
+        {/* Main */}
+        <main className="flex-1 flex flex-col min-h-0">
+          {/* Players around the table */}
+          <div className="border-b border-cream-dd bg-white/20 px-4 pt-3 pb-4 shrink-0">
+            <TableLayout players={players} roles={roles} pres={pres} chan={chan}
+              reveal={reveal} dead={dead} playerModel={playerModel} />
+          </div>
+
+          {/* Feed */}
+          <div className="flex-1 flex flex-col p-4 min-h-0">
+            <div className="flex items-center justify-between mb-2">
+              <SectionLabel>Live Feed</SectionLabel>
+              <span className="text-[10px] text-ink-lll font-body">{msgs.length} events</span>
+            </div>
+            <Feed messages={msgs} showThoughts={showThoughts}/>
+          </div>
+        </main>
+      </div>
+
+      {showStats && <StatsPanel onClose={()=>setShowStats(false)}/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
