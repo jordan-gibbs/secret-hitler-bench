@@ -1,5 +1,7 @@
 # Secret Hitler Bench
 
+<img width="1024" height="768" alt="Slide 4_3 - 1" src="https://github.com/user-attachments/assets/23794bbb-bd23-4100-9819-fdbcd5b8943d" />
+
 An LLM social deduction benchmark that runs full 8-player Secret Hitler games with AI agents. Each player is driven by a language model that must lie, deceive, interrogate, form alliances, and deduce hidden roles — all through natural language.
 
 Built to answer the question: **How well can LLMs play social deduction games?**
